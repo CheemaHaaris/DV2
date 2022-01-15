@@ -1,6 +1,8 @@
 library(ggplot2)
 library(data.table)
 library(viridis)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 # 0) Load the nycflights13 package and check what kind of datasets exist in the package,
 # then create a copy of flights dataset into a data.table object, called flight_data.
@@ -63,10 +65,10 @@ weather <- nycflights13::weather
 merged_data_3 <- merge(flight_data, weather,  by = c('origin' ,'time_hour'))
 
 
-merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed)), by = .(month.x, day.x) ]
+merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed, na.rm =T), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed)), by = .(month.x, day.x) ]
 
 
-ggplot(merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed), dep_delay), by = .(month.x, day.x) ],
+ggplot(merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed, na.rm =T), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed), dep_delay), by = .(month.x, day.x) ],
        aes( x = dep_delay, y = avg_wind_speed)) +
             geom_point() + geom_smooth(method = 'lm') +
                 labs( x = 'Departure delay', y = 'Mean of wind speed') +
@@ -77,11 +79,9 @@ ggplot(merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed), dep_de
 
 airports <- nycflights13::airports
 
-library("rnaturalearth")
-library("rnaturalearthdata")
-
 world <- ne_countries(scale = "medium", returnclass = "sf")
-class(world)
 
-ggplot(data = world) +
-  geom_sf()
+ggplot() +
+  geom_sf(data = world) +
+  geom_point(data = airports, mapping = aes(x = lon, y = lat), colour = "black") + 
+  coord_sf() + theme_bw() + labs( x = 'longitude', y = 'latitude')
