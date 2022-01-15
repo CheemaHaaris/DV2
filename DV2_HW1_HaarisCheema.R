@@ -60,28 +60,49 @@ ggplot(flight_data[arr_delay > 20,.N, by = month], aes( x = month, y = N)) + geo
 # 6) Plot the departure delay of flights going to IAH and the related day's wind speed on a scatterplot!
 # Is there any association between the two variables? Try adding a linear model.
 
-weather <- nycflights13::weather 
 
-merged_data_3 <- merge(flight_data, weather,  by = c('origin' ,'time_hour'))
+# restructuring the flights data 
+
+delays <- flight_data[dest=='IAH', .(dep_delay, month, day, origin)]
+
+# constructing the daily wind data (avg)
+
+daily_wind_speed <- data.table(nycflights13::weather)[, .(mean_wind_speed = mean(wind_speed, na.rm= T)), by= .(month, day, origin)]
+
+# merging the data
+
+joined <- merge(delays, daily_wind_speed, by = c('month','day','origin'))
 
 
-merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed, na.rm =T), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed)), by = .(month.x, day.x) ]
+ggplot(joined, aes(x = dep_delay, y = mean_wind_speed, col = mean_wind_speed)) +
+  geom_point() +
+  geom_smooth( method= 'lm' ) +
+  labs(x = 'Departure delay' , y = 'Mean of wind speed', title = 'Association between departure delay and mean wind speed') +
+  theme_bw() +
+  scale_colour_gradient(low = "dodgerblue4", high = "firebrick2")
 
+# No obvious association observed between the variables.
 
-ggplot(merged_data_3[dest == 'IAH', .(mean_wind_speed = mean(wind_speed, na.rm =T), dep_delay, month.x, day.x) , by = .(time_hour, tailnum)][,.(avg_wind_speed = mean(mean_wind_speed), dep_delay), by = .(month.x, day.x) ],
-       aes( x = dep_delay, y = avg_wind_speed)) +
-            geom_point() + geom_smooth(method = 'lm') +
-                labs( x = 'Departure delay', y = 'Mean of wind speed') +
-                    theme_bw()
 
 # 7) Plot the airports as per their geolocation on a world map, by mapping the number flights going to that 
 # destination to the size of the symbol!
 
-airports <- nycflights13::airports
+airports <- data.table(nycflights13::airports)
+
+dest <- flight_data[, .(flights = .N), by = dest]
+
+merged_data_3 <- merge(dest, airports, by.x = 'dest', by.y = 'faa')
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
 ggplot() +
   geom_sf(data = world) +
-  geom_point(data = airports, mapping = aes(x = lon, y = lat), colour = "black") + 
-  coord_sf() + theme_bw() + labs( x = 'longitude', y = 'latitude')
+  geom_point(data = merged_data_3, mapping = aes(x = lon, y = lat, size = flights, colour = flights)) + 
+  coord_sf() + theme_bw() + labs( x = 'longitude', y = 'latitude', title = 'Airports and the number of flights arriving at them') +
+  theme(legend.position="top",
+        legend.box = "vertical",
+        legend.text = element_text(size = 7, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  scale_colour_gradient(low = "dodgerblue4", high = "firebrick2")
+
